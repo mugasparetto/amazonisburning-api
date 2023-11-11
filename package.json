@@ -1,0 +1,14 @@
+{
+  "name": "fmp",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "node ./src/index.js"
+  },
+  "type": "module",
+  "dependencies": {
+    "csv": "^6.3.5",
+    "robust-point-in-polygon": "^1.0.3"
+  }
+}
