@@ -2,10 +2,12 @@ import fs from 'fs';
 import https, { Agent } from 'https';
 import { parse, stringify } from 'csv';
 import withinPolygon from 'robust-point-in-polygon';
+import { format, isAfter } from 'date-fns';
 
 const polygon = [];
 const BASE_URL =
   'https://dataserver-coids.inpe.br/queimadas/queimadas/focos/csv/10min/';
+const INITIAL_DATE = new Date('November 12, 2023 01:00:00');
 
 const isInsideAmazon = (point) => {
   switch (withinPolygon(polygon, point)) {
@@ -84,16 +86,13 @@ function readWildfiresDownloaded() {
     });
 }
 
-fs.createReadStream('./src/amazon_coordinates.csv')
-  .pipe(parse({ delimiter: ';', from_line: 2 }))
-  .on('data', function (row) {
-    const arr = row.map((data) => parseFloat(data));
-    polygon.push(arr);
-  })
-  .on('end', async function () {
+async function startDataFetch() {
+  if (isAfter(Date.now(), INITIAL_DATE)) {
+    console.log('Now is after INITIAL DATE');
+    const date = format(Date.now(), 'yyyyMMdd_HHmm').replace(/.$/, '0');
     try {
       await downloadFile(
-        BASE_URL + 'focos_10min_20231111_1720.csv',
+        BASE_URL + `focos_10min_${date}.csv`,
         './src/downloaded.csv'
       );
       console.log('File downloaded successfully');
@@ -101,6 +100,22 @@ fs.createReadStream('./src/amazon_coordinates.csv')
     } catch (error) {
       console.log(error);
     }
+  } else {
+    console.log('Now is before INITIAL DATE');
+  }
+
+  const minutes = 10;
+  setTimeout(startDataFetch, minutes * 60 * 1000);
+}
+
+fs.createReadStream('./src/amazon_coordinates.csv')
+  .pipe(parse({ delimiter: ';', from_line: 2 }))
+  .on('data', function (row) {
+    const arr = row.map((data) => parseFloat(data));
+    polygon.push(arr);
+  })
+  .on('end', function () {
+    startDataFetch();
   })
   .on('error', function (error) {
     console.log(error.message);
