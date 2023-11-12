@@ -4,6 +4,7 @@ import cors from 'cors';
 import { Server } from 'socket.io';
 
 import { loadAmazonBiome } from './index.js';
+import { allWildfires } from './state.js';
 
 const app = express();
 app.use(cors());
@@ -11,16 +12,12 @@ app.use(express.json());
 
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: 'http://localhost:3000' } });
+export { io };
 
 io.on('connection', (socket) => {
   console.log('a user connected');
+  socket.emit('initial state', allWildfires.length);
 });
-
-var counter = 0;
-
-setInterval(() => {
-  io.emit('message', counter++);
-}, 2000);
 
 server.listen(3333, () => {
   console.log('Server online on port 3333');

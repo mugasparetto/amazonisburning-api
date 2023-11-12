@@ -4,11 +4,12 @@ import { parse, stringify } from 'csv';
 import withinPolygon from 'robust-point-in-polygon';
 import { format, isAfter } from 'date-fns';
 
+import { INITIAL_DATE, allWildfires } from './state.js';
+import { io } from './app.js';
+
 const polygon = [];
-const allWildfires = [];
 const BASE_URL =
   'https://dataserver-coids.inpe.br/queimadas/queimadas/focos/csv/10min/';
-const INITIAL_DATE = new Date('November 12, 2023 01:00:00');
 
 const isInsideAmazon = (point) => {
   switch (withinPolygon(polygon, point)) {
@@ -92,8 +93,29 @@ async function writeAllWilfiresCSV() {
   }
 }
 
+function sendNewWildfiresCountToClient(newCount, oldCount) {
+  const interval = (10 * 60 * 1000) / newCount; // 1 means 10 minutes
+  let i = 1;
+
+  function increment() {
+    if (i <= newCount) {
+      console.log('Send count: ', oldCount + i);
+      io.emit('new wildfires count', oldCount + i);
+      i++;
+
+      setTimeout(increment, 0.9 * interval); // it needs to be faster because of async download, so it is set to 90% of interval
+    } else {
+      console.log('Finished incrementing count');
+    }
+  }
+
+  increment();
+}
+
 function updateAllWildfires(data) {
   console.log('Updating allWildfires');
+  let newWildfiresCount = 0;
+  const oldWilfiresCount = allWildfires.length;
 
   data.forEach((row) => {
     const location = row.slice(0, 2); // selects only lat, long
@@ -106,10 +128,12 @@ function updateAllWildfires(data) {
     } else {
       row[3] = 1; // adding count
       allWildfires.push(row);
+      newWildfiresCount++;
     }
   });
 
   console.log('Finished updating data');
+  sendNewWildfiresCountToClient(newWildfiresCount, oldWilfiresCount);
   writeAllWilfiresCSV();
 }
 
@@ -124,13 +148,14 @@ function readWildfiresDownloaded() {
     )
     .on('data', function (row) {
       if (isInsideAmazon([row[0], row[1]])) {
-        console.log(`( ${row[0]} ; ${row[1]} ) is inside Amazon`);
+        // console.log(`( ${row[0]} ; ${row[1]} ) is inside Amazon`);
         row.splice(2, 1); // removing satellite column
         data.push(row);
       } else {
       }
     })
     .on('end', function () {
+      console.log('New entries:', data.length);
       updateAllWildfires(data);
     })
     .on('error', function (error) {
@@ -166,9 +191,7 @@ async function mockedDataFetch() {
   counter++;
   try {
     await downloadFile(
-      counter === 1
-        ? BASE_URL + `focos_10min_20231112_0110.csv`
-        : BASE_URL + `focos_10min_20231112_0120.csv`,
+      BASE_URL + `focos_10min_20231112_01${counter % 6}0.csv`,
       './src/downloaded.csv'
     );
     console.log('File downloaded successfully');
@@ -177,7 +200,7 @@ async function mockedDataFetch() {
     console.log(error);
   }
 
-  setTimeout(mockedDataFetch, 10 * 1000);
+  setTimeout(mockedDataFetch, 1 * 60 * 1000);
 }
 
 const loadAmazonBiome = () => {
@@ -189,6 +212,7 @@ const loadAmazonBiome = () => {
     })
     .on('end', function () {
       console.log('Finished loading Amazon Biome');
+      startDataFetch();
     })
     .on('error', function (error) {
       console.log(error.message);
