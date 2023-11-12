@@ -74,7 +74,7 @@ function readWildfiresDownloaded() {
     .on('data', function (row) {
       if (isInsideAmazon([row[0], row[1]])) {
         console.log(`( ${row[0]} ; ${row[1]} ) is inside Amazon`);
-        data.push(row);
+        data.push(row.slice(0, 2));
       } else {
       }
     })
@@ -108,6 +108,26 @@ async function startDataFetch() {
   setTimeout(startDataFetch, minutes * 60 * 1000);
 }
 
+let counter = 0;
+
+async function mockedDataFetch() {
+  counter++;
+  try {
+    await downloadFile(
+      counter === 1
+        ? BASE_URL + `focos_10min_20231112_0110.csv`
+        : BASE_URL + `focos_10min_20231112_0120.csv`,
+      './src/downloaded.csv'
+    );
+    console.log('File downloaded successfully');
+    readWildfiresDownloaded();
+  } catch (error) {
+    console.log(error);
+  }
+
+  setTimeout(mockedDataFetch, 10 * 1000);
+}
+
 fs.createReadStream('./src/amazon_coordinates.csv')
   .pipe(parse({ delimiter: ';', from_line: 2 }))
   .on('data', function (row) {
@@ -115,7 +135,7 @@ fs.createReadStream('./src/amazon_coordinates.csv')
     polygon.push(arr);
   })
   .on('end', function () {
-    startDataFetch();
+    mockedDataFetch();
   })
   .on('error', function (error) {
     console.log(error.message);
