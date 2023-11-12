@@ -7,6 +7,7 @@ import { format, isAfter } from 'date-fns';
 import { INITIAL_DATE, allWildfires } from './state.js';
 import { io } from './app.js';
 
+const MOCKED = true;
 const polygon = [];
 const BASE_URL =
   'https://dataserver-coids.inpe.br/queimadas/queimadas/focos/csv/10min/';
@@ -94,12 +95,14 @@ async function writeAllWilfiresCSV() {
 }
 
 function sendNewWildfiresCountToClient(newCount, oldCount) {
-  const interval = (10 * 60 * 1000) / newCount; // 1 means 10 minutes
+  const interval = MOCKED
+    ? (1 * 60 * 1000) / newCount
+    : (10 * 60 * 1000) / newCount; // 10 means 10 minutes
   let i = 1;
 
   function increment() {
     if (i <= newCount) {
-      console.log('Send count: ', oldCount + i);
+      console.log(`Send count: ${oldCount + i}`);
       io.emit('new wildfires count', oldCount + i);
       i++;
 
@@ -133,12 +136,18 @@ function updateAllWildfires(data) {
   });
 
   console.log('Finished updating data');
+  console.log(
+    `${newWildfiresCount} new lines added to allWildfires, ${
+      data.length - newWildfiresCount
+    } are duplicated`
+  );
   sendNewWildfiresCountToClient(newWildfiresCount, oldWilfiresCount);
   writeAllWilfiresCSV();
 }
 
 function readWildfiresDownloaded() {
   const data = [];
+  let linesDownloaded = 0;
   fs.createReadStream('./src/downloaded.csv')
     .pipe(
       parse({
@@ -147,6 +156,7 @@ function readWildfiresDownloaded() {
       })
     )
     .on('data', function (row) {
+      linesDownloaded++;
       if (isInsideAmazon([row[0], row[1]])) {
         // console.log(`( ${row[0]} ; ${row[1]} ) is inside Amazon`);
         row.splice(2, 1); // removing satellite column
@@ -155,7 +165,9 @@ function readWildfiresDownloaded() {
       }
     })
     .on('end', function () {
-      console.log('New entries:', data.length);
+      console.log(
+        `${linesDownloaded} entries downloaded, which ${data.length} are inside Amazon`
+      );
       updateAllWildfires(data);
     })
     .on('error', function (error) {
@@ -212,7 +224,11 @@ const loadAmazonBiome = () => {
     })
     .on('end', function () {
       console.log('Finished loading Amazon Biome');
-      startDataFetch();
+      if (MOCKED) {
+        mockedDataFetch();
+      } else {
+        startDataFetch();
+      }
     })
     .on('error', function (error) {
       console.log(error.message);
