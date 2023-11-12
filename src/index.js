@@ -180,15 +180,19 @@ async function mockedDataFetch() {
   setTimeout(mockedDataFetch, 10 * 1000);
 }
 
-fs.createReadStream('./src/amazon_coordinates.csv')
-  .pipe(parse({ delimiter: ';', from_line: 2 }))
-  .on('data', function (row) {
-    const arr = row.map((data) => parseFloat(data));
-    polygon.push(arr);
-  })
-  .on('end', function () {
-    mockedDataFetch();
-  })
-  .on('error', function (error) {
-    console.log(error.message);
-  });
+const loadAmazonBiome = () => {
+  fs.createReadStream('./src/amazon_coordinates.csv')
+    .pipe(parse({ delimiter: ';', from_line: 2 }))
+    .on('data', function (row) {
+      const arr = row.map((data) => parseFloat(data));
+      polygon.push(arr);
+    })
+    .on('end', function () {
+      console.log('Finished loading Amazon Biome');
+    })
+    .on('error', function (error) {
+      console.log(error.message);
+    });
+};
+
+export { loadAmazonBiome };
