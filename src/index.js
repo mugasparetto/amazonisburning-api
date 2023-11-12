@@ -5,6 +5,7 @@ import withinPolygon from 'robust-point-in-polygon';
 import { format, isAfter } from 'date-fns';
 
 const polygon = [];
+const allWildfires = [];
 const BASE_URL =
   'https://dataserver-coids.inpe.br/queimadas/queimadas/focos/csv/10min/';
 const INITIAL_DATE = new Date('November 12, 2023 01:00:00');
@@ -18,6 +19,29 @@ const isInsideAmazon = (point) => {
       return false;
   }
 };
+
+function arraysEqual(a, b) {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  if (a.length !== b.length) return false;
+
+  for (var i = 0; i < a.length; ++i) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function locationExists(obj) {
+  var i;
+  for (i = 0; i < allWildfires.length; i++) {
+    const allWildFiresLocation = allWildfires[i].slice(0, 2); // selects only lat, long
+    if (arraysEqual(allWildFiresLocation, obj)) {
+      return i;
+    }
+  }
+
+  return false;
+}
 
 async function downloadFile(url, targetFile) {
   return await new Promise((resolve, reject) => {
@@ -45,16 +69,17 @@ async function downloadFile(url, targetFile) {
   });
 }
 
-async function writeToAllWildfires(data) {
+async function writeAllWilfiresCSV() {
   console.log('Writing to all_wildfires.csv');
 
-  const writeStream = fs.createWriteStream('./src/all_wildfires.csv', {
-    flags: 'a',
+  const writeStream = fs.createWriteStream('./src/all_wildfires.csv');
+  const columns = ['lat', 'lon', 'date', 'count'];
+  const stringifier = stringify({ header: true, columns });
+
+  allWildfires.forEach((row) => {
+    stringifier.write(row);
   });
 
-  const stringifier = stringify({ header: false });
-
-  data.forEach((row) => stringifier.write(row));
   stringifier.pipe(writeStream);
   console.log('Finished writing data');
 
@@ -67,19 +92,46 @@ async function writeToAllWildfires(data) {
   }
 }
 
+function updateAllWildfires(data) {
+  console.log('Updating allWildfires');
+
+  data.forEach((row) => {
+    const location = row.slice(0, 2); // selects only lat, long
+    if (locationExists(location)) {
+      const index = locationExists(location);
+      const [lat, long, date, count] = allWildfires[index];
+      const newRow = [lat, long, date, count + 1];
+
+      allWildfires[index] = newRow;
+    } else {
+      row[3] = 1; // adding count
+      allWildfires.push(row);
+    }
+  });
+
+  console.log('Finished updating data');
+  writeAllWilfiresCSV();
+}
+
 function readWildfiresDownloaded() {
   const data = [];
   fs.createReadStream('./src/downloaded.csv')
-    .pipe(parse({ delimiter: ',', from_line: 2 }))
+    .pipe(
+      parse({
+        delimiter: ',',
+        from_line: 2,
+      })
+    )
     .on('data', function (row) {
       if (isInsideAmazon([row[0], row[1]])) {
         console.log(`( ${row[0]} ; ${row[1]} ) is inside Amazon`);
-        data.push(row.slice(0, 2));
+        row.splice(2, 1); // removing satellite column
+        data.push(row);
       } else {
       }
     })
     .on('end', function () {
-      writeToAllWildfires(data);
+      updateAllWildfires(data);
     })
     .on('error', function (error) {
       console.log(error.message);
