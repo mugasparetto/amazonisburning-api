@@ -8,8 +8,9 @@ import { INITIAL_DATE, allWildfires } from './state.js';
 import { io } from './app.js';
 
 const polygon = [];
+const SATELLITE = 'GOES-16';
 const INTERVAL_IN_MINUTES = 10;
-const MOCKED = false;
+const MOCKED = true;
 const BASE_URL =
   'https://dataserver-coids.inpe.br/queimadas/queimadas/focos/csv/10min/';
 
@@ -158,7 +159,7 @@ function readWildfiresDownloaded() {
     )
     .on('data', function (row) {
       linesDownloaded++;
-      if (isInsideAmazon([row[0], row[1]])) {
+      if (isInsideAmazon([row[0], row[1]]) && row[2] === SATELLITE) {
         // console.log(`( ${row[0]} ; ${row[1]} ) is inside Amazon`);
         row.splice(2, 1); // removing satellite column
         data.push(row);
@@ -167,7 +168,7 @@ function readWildfiresDownloaded() {
     })
     .on('end', function () {
       console.log(
-        `${linesDownloaded} entries downloaded, which ${data.length} are inside Amazon`
+        `${linesDownloaded} entries downloaded, which ${data.length} are inside Amazon and captured by ${SATELLITE}`
       );
       updateAllWildfires(data);
     })
@@ -197,13 +198,13 @@ async function startDataFetch() {
   setTimeout(startDataFetch, INTERVAL_IN_MINUTES * 60 * 1000);
 }
 
-let counter = 0;
+let counter = 1;
 
 async function mockedDataFetch() {
   counter++;
   try {
     await downloadFile(
-      BASE_URL + `focos_10min_20231112_01${counter % 6}0.csv`,
+      BASE_URL + `focos_10min_20231113_19${counter % 6}0.csv`,
       './src/downloaded.csv'
     );
     console.log('File downloaded successfully');
