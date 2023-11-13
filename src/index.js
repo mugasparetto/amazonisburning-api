@@ -7,8 +7,9 @@ import { format, isAfter } from 'date-fns';
 import { INITIAL_DATE, allWildfires } from './state.js';
 import { io } from './app.js';
 
-const MOCKED = true;
 const polygon = [];
+const INTERVAL_IN_MINUTES = 10;
+const MOCKED = false;
 const BASE_URL =
   'https://dataserver-coids.inpe.br/queimadas/queimadas/focos/csv/10min/';
 
@@ -97,7 +98,7 @@ async function writeAllWilfiresCSV() {
 function sendNewWildfiresCountToClient(newCount, oldCount) {
   const interval = MOCKED
     ? (1 * 60 * 1000) / newCount
-    : (10 * 60 * 1000) / newCount; // 10 means 10 minutes
+    : ((INTERVAL_IN_MINUTES - 1) * 60 * 1000) / newCount; // one minute faster because of async download
   let i = 1;
 
   function increment() {
@@ -106,7 +107,7 @@ function sendNewWildfiresCountToClient(newCount, oldCount) {
       io.emit('new wildfires count', oldCount + i);
       i++;
 
-      setTimeout(increment, 0.9 * interval); // it needs to be faster because of async download, so it is set to 90% of interval
+      setTimeout(increment, interval);
     } else {
       console.log('Finished incrementing count');
     }
@@ -193,8 +194,7 @@ async function startDataFetch() {
     console.log('Now is before INITIAL DATE');
   }
 
-  const minutes = 10;
-  setTimeout(startDataFetch, minutes * 60 * 1000);
+  setTimeout(startDataFetch, INTERVAL_IN_MINUTES * 60 * 1000);
 }
 
 let counter = 0;
