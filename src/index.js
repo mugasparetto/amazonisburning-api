@@ -1,6 +1,6 @@
 import fs from 'fs';
 import https, { Agent } from 'https';
-import { parse, stringify } from 'csv';
+import { parse } from 'csv';
 import withinPolygon from 'robust-point-in-polygon';
 import { format, isAfter } from 'date-fns';
 
@@ -9,10 +9,13 @@ import { io } from './app.js';
 
 const polygon = [];
 const SATELLITE = 'GOES-16';
+const MOCKED_INTERVAL = 2;
 const INTERVAL_IN_MINUTES = 10;
 const MOCKED = true;
 const BASE_URL =
   'https://dataserver-coids.inpe.br/queimadas/queimadas/focos/csv/10min/';
+
+let timeStartDownloading;
 
 const isInsideAmazon = (point) => {
   switch (withinPolygon(polygon, point)) {
@@ -74,18 +77,19 @@ async function downloadFile(url, targetFile) {
 }
 
 async function writeAllWilfiresCSV() {
-  console.log('Writing to all_wildfires.csv');
+  // Maybe I don't need to have a .csv with all wildfires...
+  // console.log('Writing to all_wildfires.csv');
 
-  const writeStream = fs.createWriteStream('./src/all_wildfires.csv');
-  const columns = ['lat', 'lon', 'date', 'count'];
-  const stringifier = stringify({ header: true, columns });
+  // const writeStream = fs.createWriteStream('./src/all_wildfires.csv');
+  // const columns = ['lat', 'lon', 'date', 'count'];
+  // const stringifier = stringify({ header: true, columns });
 
-  allWildfires.forEach((row) => {
-    stringifier.write(row);
-  });
+  // allWildfires.forEach((row) => {
+  //   stringifier.write(row);
+  // });
 
-  stringifier.pipe(writeStream);
-  console.log('Finished writing data');
+  // stringifier.pipe(writeStream);
+  // console.log('Finished writing data');
 
   try {
     await fs.promises.unlink('./src/downloaded.csv');
@@ -97,18 +101,24 @@ async function writeAllWilfiresCSV() {
 }
 
 function sendNewWildfiresCountToClient(newCount, oldCount) {
-  const interval = MOCKED
-    ? (1 * 60 * 1000) / newCount
-    : ((INTERVAL_IN_MINUTES - 1) * 60 * 1000) / newCount; // one minute faster because of async download
+  const minutesInMilis =
+    (MOCKED ? MOCKED_INTERVAL : INTERVAL_IN_MINUTES) * 60 * 1000;
+
   let i = 1;
 
   function increment() {
     if (i <= newCount) {
-      console.log(`Send count: ${oldCount + i}`);
+      const timeSpentUntilNow = Date.now() - timeStartDownloading;
+      const dividend = i < newCount - 1 ? newCount - (i + 1) : 1; // prevent divisions by 0
+      const interval = Math.floor(
+        Math.abs(minutesInMilis - timeSpentUntilNow) / dividend
+      );
+
+      console.log(`Send count: `, oldCount + i);
       io.emit('new wildfires count', oldCount + i);
       i++;
 
-      setTimeout(increment, interval);
+      setTimeout(increment, interval < 0 ? 0 : interval);
     } else {
       console.log('Finished incrementing count');
     }
@@ -163,7 +173,6 @@ function readWildfiresDownloaded() {
         // console.log(`( ${row[0]} ; ${row[1]} ) is inside Amazon`);
         row.splice(2, 1); // removing satellite column
         data.push(row);
-      } else {
       }
     })
     .on('end', function () {
@@ -179,6 +188,7 @@ function readWildfiresDownloaded() {
 
 async function startDataFetch() {
   if (isAfter(Date.now(), INITIAL_DATE)) {
+    timeStartDownloading = Date.now();
     console.log('Now is after INITIAL DATE');
     const date = format(Date.now(), 'yyyyMMdd_HHmm').replace(/.$/, '0');
     try {
@@ -202,6 +212,7 @@ let counter = 1;
 
 async function mockedDataFetch() {
   counter++;
+  timeStartDownloading = Date.now();
   try {
     await downloadFile(
       BASE_URL + `focos_10min_20231113_19${counter % 6}0.csv`,
@@ -213,7 +224,7 @@ async function mockedDataFetch() {
     console.log(error);
   }
 
-  setTimeout(mockedDataFetch, 1 * 60 * 1000);
+  setTimeout(mockedDataFetch, MOCKED_INTERVAL * 60 * 1000);
 }
 
 const loadAmazonBiome = () => {
