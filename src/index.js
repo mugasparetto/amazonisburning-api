@@ -4,18 +4,19 @@ import { parse } from 'csv';
 import withinPolygon from 'robust-point-in-polygon';
 import { format, isAfter } from 'date-fns';
 
-import { INITIAL_DATE, allWildfires } from './state.js';
+import { initialDate, allWildfires } from './state.js';
 import { io } from './app.js';
 
 const polygon = [];
 const SATELLITE = 'GOES-16';
 const MOCKED_INTERVAL = 2;
 const INTERVAL_IN_MINUTES = 10;
-const MOCKED = true;
+const MOCKED = false;
 const BASE_URL =
   'https://dataserver-coids.inpe.br/queimadas/queimadas/focos/csv/10min/';
 
 let timeStartDownloading;
+let tenMinuteTimer;
 
 const isInsideAmazon = (point) => {
   switch (withinPolygon(polygon, point)) {
@@ -187,7 +188,7 @@ function readWildfiresDownloaded() {
 }
 
 async function startDataFetch() {
-  if (isAfter(Date.now(), INITIAL_DATE)) {
+  if (isAfter(Date.now(), initialDate)) {
     timeStartDownloading = Date.now();
     console.log('Now is after INITIAL DATE');
     const date = format(Date.now(), 'yyyyMMdd_HHmm').replace(/.$/, '0');
@@ -198,14 +199,18 @@ async function startDataFetch() {
       );
       console.log('File downloaded successfully');
       readWildfiresDownloaded();
+      tenMinuteTimer = setTimeout(
+        startDataFetch,
+        INTERVAL_IN_MINUTES * 60 * 1000
+      );
     } catch (error) {
       console.log(error);
+      clearTimeout(tenMinuteTimer);
+      setTimeout(startDataFetch, 1 * 60 * 1000); // if file was not found, try again 2 minutes later
     }
   } else {
-    console.log('Now is before INITIAL DATE');
+    console.log(`Now is before INITIAL DATE ${initialDate}`);
   }
-
-  setTimeout(startDataFetch, INTERVAL_IN_MINUTES * 60 * 1000);
 }
 
 let counter = 1;
@@ -247,4 +252,4 @@ const loadAmazonBiome = () => {
     });
 };
 
-export { loadAmazonBiome };
+export { loadAmazonBiome, startDataFetch, tenMinuteTimer };
