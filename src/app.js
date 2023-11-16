@@ -24,8 +24,10 @@ io.on('connection', (socket) => {
   socket.emit('initial state', allWildfires.length);
 });
 
-server.listen(3333, () => {
-  console.log('Server online on port 3333');
+const APP_PORT = process.env.PORT || 3333;
+
+server.listen(APP_PORT, () => {
+  console.log(`Server online on port ${APP_PORT}`);
   console.log('Loading Amazon Biome');
   loadAmazonBiome();
 });
