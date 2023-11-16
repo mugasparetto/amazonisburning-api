@@ -1,6 +1,6 @@
 import fs from 'fs';
 import https, { Agent } from 'https';
-import { parse } from 'csv';
+import { parse, stringify } from 'csv';
 import withinPolygon from 'robust-point-in-polygon';
 import { format, isAfter } from 'date-fns';
 
@@ -79,18 +79,18 @@ async function downloadFile(url, targetFile) {
 
 async function writeAllWilfiresCSV() {
   // Maybe I don't need to have a .csv with all wildfires...
-  // console.log('Writing to all_wildfires.csv');
+  console.log('Writing to all_wildfires.csv');
 
-  // const writeStream = fs.createWriteStream('./src/all_wildfires.csv');
-  // const columns = ['lat', 'lon', 'date', 'count'];
-  // const stringifier = stringify({ header: true, columns });
+  const writeStream = fs.createWriteStream('./src/all_wildfires.csv');
+  const columns = ['lat', 'lon', 'date', 'count'];
+  const stringifier = stringify({ header: true, columns });
 
-  // allWildfires.forEach((row) => {
-  //   stringifier.write(row);
-  // });
+  allWildfires.forEach((row) => {
+    stringifier.write(row);
+  });
 
-  // stringifier.pipe(writeStream);
-  // console.log('Finished writing data');
+  stringifier.pipe(writeStream);
+  console.log('Finished writing data');
 
   try {
     await fs.promises.unlink('./src/downloaded.csv');
@@ -110,9 +110,8 @@ function sendNewWildfiresCountToClient(newCount, oldCount) {
   function increment() {
     if (i <= newCount) {
       const timeSpentUntilNow = Date.now() - timeStartDownloading;
-      const dividend = i < newCount - 1 ? newCount - (i + 1) : 1; // prevent divisions by 0
       const interval = Math.floor(
-        Math.abs(minutesInMilis - timeSpentUntilNow) / dividend
+        Math.abs(minutesInMilis - timeSpentUntilNow) / (newCount - (i - 1))
       );
 
       console.log(`Send count: `, oldCount + i);
