@@ -1,6 +1,6 @@
 import fs from 'fs';
 import https, { Agent } from 'https';
-import { parse, stringify } from 'csv';
+import { parse } from 'csv';
 import withinPolygon from 'robust-point-in-polygon';
 import { format, isAfter } from 'date-fns';
 
@@ -9,7 +9,7 @@ import { io } from './app.js';
 
 const polygon = [];
 const SATELLITE = 'GOES-16';
-const MOCKED_INTERVAL = 2;
+const MOCKED_INTERVAL = 0.5;
 const INTERVAL_IN_MINUTES = 10;
 const MOCKED = false;
 const BASE_URL =
@@ -40,10 +40,9 @@ function arraysEqual(a, b) {
 }
 
 function locationExists(obj) {
-  var i;
-  for (i = 0; i < allWildfires.length; i++) {
-    const allWildFiresLocation = allWildfires[i].slice(0, 2); // selects only lat, long
-    if (arraysEqual(allWildFiresLocation, obj)) {
+  for (let i = 0; i < allWildfires.length; i++) {
+    const wildFiresLocation = allWildfires[i].slice(0, 2); // selects only lat, long
+    if (arraysEqual(wildFiresLocation, obj)) {
       return i;
     }
   }
@@ -79,18 +78,18 @@ async function downloadFile(url, targetFile) {
 
 async function writeAllWilfiresCSV() {
   // Maybe I don't need to have a .csv with all wildfires...
-  console.log('Writing to all_wildfires.csv');
+  // console.log('Writing to all_wildfires.csv');
 
-  const writeStream = fs.createWriteStream('./src/all_wildfires.csv');
-  const columns = ['lat', 'lon', 'date', 'count'];
-  const stringifier = stringify({ header: true, columns });
+  // const writeStream = fs.createWriteStream('./src/all_wildfires.csv');
+  // const columns = ['lat', 'lon', 'date', 'count'];
+  // const stringifier = stringify({ header: true, columns });
 
-  allWildfires.forEach((row) => {
-    stringifier.write(row);
-  });
+  // allWildfires.forEach((row) => {
+  //   stringifier.write(row);
+  // });
 
-  stringifier.pipe(writeStream);
-  console.log('Finished writing data');
+  // stringifier.pipe(writeStream);
+  // console.log('Finished writing data');
 
   try {
     await fs.promises.unlink('./src/downloaded.csv');
@@ -134,12 +133,12 @@ function updateAllWildfires(data) {
 
   data.forEach((row) => {
     const location = row.slice(0, 2); // selects only lat, long
-    if (locationExists(location)) {
-      const index = locationExists(location);
-      const [lat, long, date, count] = allWildfires[index];
+    const exists = locationExists(location);
+    if (exists || exists === 0) {
+      // exists could be 0, which is falsy. I need to check if it is 0
+      const [lat, long, date, count] = allWildfires[exists];
       const newRow = [lat, long, date, count + 1];
-
-      allWildfires[index] = newRow;
+      allWildfires[exists] = newRow;
     } else {
       row[3] = 1; // adding count
       allWildfires.push(row);
@@ -193,14 +192,16 @@ async function startDataFetch() {
     const date = format(Date.now(), 'yyyyMMdd_HHmm').replace(/.$/, '0');
     try {
       await downloadFile(
-        BASE_URL + `focos_10min_${date}.csv`,
+        MOCKED
+          ? BASE_URL + `focos_10min_20231116_1000.csv`
+          : BASE_URL + `focos_10min_${date}.csv`,
         './src/downloaded.csv'
       );
       console.log('File downloaded successfully');
       readWildfiresDownloaded();
       tenMinuteTimer = setTimeout(
         startDataFetch,
-        INTERVAL_IN_MINUTES * 60 * 1000
+        (MOCKED ? MOCKED_INTERVAL : INTERVAL_IN_MINUTES) * 60 * 1000
       );
     } catch (error) {
       console.log(error);
@@ -216,25 +217,6 @@ async function startDataFetch() {
   }
 }
 
-let counter = 1;
-
-async function mockedDataFetch() {
-  counter++;
-  timeStartDownloading = Date.now();
-  try {
-    await downloadFile(
-      BASE_URL + `focos_10min_20231113_19${counter % 6}0.csv`,
-      './src/downloaded.csv'
-    );
-    console.log('File downloaded successfully');
-    readWildfiresDownloaded();
-  } catch (error) {
-    console.log(error);
-  }
-
-  setTimeout(mockedDataFetch, MOCKED_INTERVAL * 60 * 1000);
-}
-
 const loadAmazonBiome = () => {
   fs.createReadStream('./src/amazon_coordinates.csv')
     .pipe(parse({ delimiter: ';', from_line: 2 }))
@@ -244,11 +226,7 @@ const loadAmazonBiome = () => {
     })
     .on('end', function () {
       console.log('Finished loading Amazon Biome');
-      if (MOCKED) {
-        mockedDataFetch();
-      } else {
-        startDataFetch();
-      }
+      startDataFetch();
     })
     .on('error', function (error) {
       console.log(error.message);
