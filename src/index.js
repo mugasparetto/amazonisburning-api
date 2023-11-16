@@ -210,6 +210,10 @@ async function startDataFetch() {
     }
   } else {
     console.log(`Now is before INITIAL DATE ${initialDate}`);
+    tenMinuteTimer = setTimeout(
+      startDataFetch,
+      INTERVAL_IN_MINUTES * 60 * 1000
+    );
   }
 }
 
