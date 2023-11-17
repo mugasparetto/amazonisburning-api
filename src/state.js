@@ -8,8 +8,10 @@ initialDate = new Date('December 5, 2023 09:00:00');
 
 async function initializeState() {
   const iD = await storage.getItem('initial date');
-  console.log(parseISO(iD));
-  initialDate = parseISO(iD) || initialDate;
+  if (iD) {
+    initialDate = parseISO(iD);
+  }
+  console.log('Initial date: ', initialDate);
 }
 
 async function updateDate(string) {

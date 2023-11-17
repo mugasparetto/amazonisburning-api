@@ -1,6 +1,6 @@
 import fs from 'fs';
 import https, { Agent } from 'https';
-import { parse } from 'csv';
+import { parse, stringify } from 'csv';
 import withinPolygon from 'robust-point-in-polygon';
 import { format, isAfter } from 'date-fns';
 import storage from 'node-persist';
@@ -10,7 +10,7 @@ import { io } from './app.js';
 
 const polygon = [];
 const SATELLITE = 'GOES-16';
-const MOCKED_INTERVAL = 0.5;
+const MOCKED_INTERVAL = 1;
 const INTERVAL_IN_MINUTES = 10;
 const MOCKED = false;
 const BASE_URL =
@@ -18,6 +18,7 @@ const BASE_URL =
 
 let timeStartDownloading;
 let tenMinuteTimer;
+let incrementTimer;
 
 const isInsideAmazon = (point) => {
   switch (withinPolygon(polygon, point)) {
@@ -77,28 +78,32 @@ async function downloadFile(url, targetFile) {
   });
 }
 
-async function writeAllWilfiresCSV() {
-  // Maybe I don't need to have a .csv with all wildfires...
-  // console.log('Writing to all_wildfires.csv');
-
-  // const writeStream = fs.createWriteStream('./src/all_wildfires.csv');
-  // const columns = ['lat', 'lon', 'date', 'count'];
-  // const stringifier = stringify({ header: true, columns });
-
-  // allWildfires.forEach((row) => {
-  //   stringifier.write(row);
-  // });
-
-  // stringifier.pipe(writeStream);
-  // console.log('Finished writing data');
-
+async function deleteDownloadedFile() {
   try {
+    const date = format(Date.now(), 'yyyyMMdd_HHmm').replace(/.$/, '0');
+    const lastURL = `focos_10min_${date}.csv`;
+    await storage.updateItem('last url fetched', lastURL);
     await fs.promises.unlink('./src/downloaded.csv');
     console.log('Downloaded file deleted');
   } catch (error) {
     console.log('Error deleting downloaded file');
     console.log(error);
   }
+}
+
+function writeToCSV(dataToWrite) {
+  console.log('Writing to all_wildfires.csv');
+
+  const writeStream = fs.createWriteStream('./src/all_wildfires.csv');
+  const columns = ['lat', 'lon', 'date', 'count'];
+  const stringifier = stringify({ header: true, columns });
+
+  dataToWrite.forEach((row) => {
+    stringifier.write(row);
+  });
+
+  stringifier.pipe(writeStream);
+  console.log('Finished writing data');
 }
 
 function sendNewWildfiresCountToClient(newCount, oldCount) {
@@ -118,7 +123,7 @@ function sendNewWildfiresCountToClient(newCount, oldCount) {
       io.emit('new wildfires count', oldCount + i);
       i++;
 
-      setTimeout(increment, interval < 0 ? 0 : interval);
+      incrementTimer = setTimeout(increment, interval < 0 ? 0 : interval);
     } else {
       console.log('Finished incrementing count');
     }
@@ -154,7 +159,29 @@ function updateAllWildfires(data) {
     } are duplicated`
   );
   sendNewWildfiresCountToClient(newWildfiresCount, oldWilfiresCount);
-  writeAllWilfiresCSV();
+  writeToCSV(allWildfires);
+  deleteDownloadedFile();
+}
+
+function readLocalCSV() {
+  fs.createReadStream('./src/all_wildfires.csv')
+    .pipe(
+      parse({
+        delimiter: ',',
+        from_line: 2,
+      })
+    )
+    .on('data', function (row) {
+      const [lat, long, date, count] = row;
+      allWildfires.push([lat, long, date, parseInt(count)]);
+    })
+    .on('end', function () {
+      console.log('allWildfires has been populated: ', allWildfires);
+      startDataFetch();
+    })
+    .on('error', function (error) {
+      console.log(error.message);
+    });
 }
 
 function readWildfiresDownloaded() {
@@ -186,20 +213,30 @@ function readWildfiresDownloaded() {
     });
 }
 
+let counter = 0;
+
 async function startDataFetch() {
   if (isAfter(Date.now(), initialDate)) {
     timeStartDownloading = Date.now();
     console.log('Now is after INITIAL DATE');
     const date = format(Date.now(), 'yyyyMMdd_HHmm').replace(/.$/, '0');
     try {
-      await downloadFile(
-        MOCKED
-          ? BASE_URL + `focos_10min_20231116_1000.csv`
-          : BASE_URL + `focos_10min_${date}.csv`,
-        './src/downloaded.csv'
-      );
-      console.log('File downloaded successfully');
-      readWildfiresDownloaded();
+      const lastURL = await storage.getItem('last url fetched');
+      const urlNow = `focos_10min_${date}.csv`;
+      console.log('-----');
+      console.log('LastURL: ', lastURL);
+      console.log('urlNow: ', urlNow);
+      console.log('-----');
+      if (lastURL !== urlNow && !MOCKED) {
+        await downloadFile(
+          MOCKED
+            ? BASE_URL + `focos_10min_20231116_10${counter++}0.csv`
+            : BASE_URL + `focos_10min_${date}.csv`,
+          './src/downloaded.csv'
+        );
+        console.log('File downloaded successfully');
+        readWildfiresDownloaded();
+      }
       tenMinuteTimer = setTimeout(
         startDataFetch,
         (MOCKED ? MOCKED_INTERVAL : INTERVAL_IN_MINUTES) * 60 * 1000
@@ -230,7 +267,7 @@ const loadAmazonBiome = () => {
       try {
         await storage.init({});
         await initializeState();
-        startDataFetch();
+        readLocalCSV();
       } catch (error) {
         console.log(error);
       }
@@ -240,4 +277,10 @@ const loadAmazonBiome = () => {
     });
 };
 
-export { loadAmazonBiome, startDataFetch, tenMinuteTimer };
+export {
+  loadAmazonBiome,
+  startDataFetch,
+  tenMinuteTimer,
+  incrementTimer,
+  writeToCSV,
+};

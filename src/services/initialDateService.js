@@ -1,10 +1,18 @@
 import { allWildfires, initialDate, updateDate } from '../state.js';
-import { startDataFetch, tenMinuteTimer } from '../index.js';
+import {
+  startDataFetch,
+  tenMinuteTimer,
+  incrementTimer,
+  writeToCSV,
+} from '../index.js';
+import { io } from '../app.js';
 
 const setInitialDate = async (req, res, next) => {
   const { year, month, day, hour, minutes } = req.body;
 
   allWildfires.length = 0;
+  writeToCSV(allWildfires);
+  io.emit('new wildfires count', 0);
 
   // month needs to have first capital letter
   // minutes should end with zero
@@ -12,6 +20,7 @@ const setInitialDate = async (req, res, next) => {
   updateDate(`${month} ${day}, ${year} ${hour}:${minutes}:00`);
   console.log(`NEW INITIAL DATE: ${initialDate}`);
   clearTimeout(tenMinuteTimer);
+  clearTimeout(incrementTimer);
   startDataFetch();
 
   if (!year || !month || !day || !hour || !minutes) {
