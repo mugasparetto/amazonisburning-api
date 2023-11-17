@@ -3,8 +3,9 @@ import https, { Agent } from 'https';
 import { parse } from 'csv';
 import withinPolygon from 'robust-point-in-polygon';
 import { format, isAfter } from 'date-fns';
+import storage from 'node-persist';
 
-import { initialDate, allWildfires } from './state.js';
+import { initialDate, allWildfires, initializeState } from './state.js';
 import { io } from './app.js';
 
 const polygon = [];
@@ -224,9 +225,15 @@ const loadAmazonBiome = () => {
       const arr = row.map((data) => parseFloat(data));
       polygon.push(arr);
     })
-    .on('end', function () {
+    .on('end', async function () {
       console.log('Finished loading Amazon Biome');
-      startDataFetch();
+      try {
+        await storage.init({});
+        await initializeState();
+        startDataFetch();
+      } catch (error) {
+        console.log(error);
+      }
     })
     .on('error', function (error) {
       console.log(error.message);
