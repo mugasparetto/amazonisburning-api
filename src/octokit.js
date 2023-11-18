@@ -58,10 +58,6 @@ async function updateConfigFile({ key, data }) {
       });
     }
 
-    console.log('---');
-    console.log(string);
-    console.log('---');
-
     const newContent = Buffer.from(string, 'utf8').toString('base64');
 
     const { sha } = await getFileData();

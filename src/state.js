@@ -15,6 +15,12 @@ async function initializeState() {
 }
 
 async function updateConfig({ key, data }) {
+  if (key === 'initial_date') {
+    initialDate = data;
+  } else if (key === 'last_url') {
+    lastURL = data;
+  }
+
   try {
     await updateConfigFile({ key, data });
   } catch (error) {

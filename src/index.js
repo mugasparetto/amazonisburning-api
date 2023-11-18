@@ -87,9 +87,7 @@ async function deleteDownloadedFile() {
   try {
     const date = format(Date.now(), 'yyyyMMdd_HHmm').replace(/.$/, '0');
     const lastURL = `focos_10min_${date}.csv`;
-    console.log('UPDATING LAST URL');
     await updateConfig({ key: 'last_url', data: lastURL });
-    console.log('FINISHED UPDATING LAST URL');
     await fs.promises.unlink('./src/downloaded.csv');
     console.log('Downloaded file deleted');
   } catch (error) {
