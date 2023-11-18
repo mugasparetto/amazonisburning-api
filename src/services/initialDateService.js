@@ -1,4 +1,4 @@
-import { allWildfires, initialDate, updateDate } from '../state.js';
+import { allWildfires, initialDate, updateConfig } from '../state.js';
 import {
   startDataFetch,
   tenMinuteTimer,
@@ -17,7 +17,10 @@ const setInitialDate = async (req, res, next) => {
   // month needs to have first capital letter
   // minutes should end with zero
   // initialDate = new Date('November 14, 2023 20:50:00');
-  updateDate(`${month} ${day}, ${year} ${hour}:${minutes}:00`);
+  updateConfig({
+    key: 'initial_date',
+    string: `${month} ${day}, ${year} ${hour}:${minutes}:00`,
+  });
   console.log(`NEW INITIAL DATE: ${initialDate}`);
   clearTimeout(tenMinuteTimer);
   clearTimeout(incrementTimer);

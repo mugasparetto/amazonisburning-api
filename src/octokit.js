@@ -1,5 +1,5 @@
 import { Octokit } from '@octokit/rest';
-import { lastURL } from './state.js';
+import { initialDate, lastURL } from './state.js';
 
 const octokit = new Octokit({
   auth:
@@ -41,12 +41,27 @@ async function getInitialState() {
   }
 }
 
-async function updateInitialDate(newInitialDate) {
+async function updateConfigFile({ key, data }) {
   try {
-    const string = JSON.stringify({
-      initial_date: newInitialDate,
-      last_url: lastURL,
-    });
+    let string;
+    console.log(data);
+
+    if (key === 'initial_date') {
+      string = JSON.stringify({
+        initial_date: data,
+        last_url: lastURL || '',
+      });
+    } else if (key === 'last_url') {
+      string = JSON.stringify({
+        initial_date: initialDate,
+        last_url: data,
+      });
+    }
+
+    console.log('---');
+    console.log(string);
+    console.log('---');
+
     const newContent = Buffer.from(string, 'utf8').toString('base64');
 
     const { sha } = await getFileData();
@@ -56,7 +71,7 @@ async function updateInitialDate(newInitialDate) {
       repo: 'amazonisburning-files',
       path: `${CONFIG_FILE}.json`,
       sha: sha,
-      message: 'initial_date updated',
+      message: `${key} updated`,
       content: newContent,
     });
   } catch (error) {
@@ -64,4 +79,4 @@ async function updateInitialDate(newInitialDate) {
   }
 }
 
-export { getInitialState, updateInitialDate };
+export { getInitialState, updateConfigFile };

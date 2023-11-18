@@ -1,7 +1,6 @@
-import storage from 'node-persist';
 import { parseISO } from 'date-fns';
 
-import { getInitialState, updateInitialDate } from './octokit.js';
+import { getInitialState, updateConfigFile } from './octokit.js';
 
 const allWildfires = [];
 var initialDate;
@@ -12,15 +11,15 @@ async function initializeState() {
   initialDate = parseISO(initial_date);
   lastURL = last_url;
   console.log('Initial date: ', initialDate);
+  console.log('Last URL: ', lastURL);
 }
 
-async function updateDate(string) {
-  initialDate = new Date(string);
+async function updateConfig({ key, data }) {
   try {
-    await updateInitialDate(initialDate);
+    await updateConfigFile({ key, data });
   } catch (error) {
     console.log(error);
   }
 }
 
-export { allWildfires, initialDate, updateDate, initializeState, lastURL };
+export { allWildfires, initialDate, initializeState, lastURL, updateConfig };

@@ -3,13 +3,13 @@ import https, { Agent } from 'https';
 import { parse, stringify } from 'csv';
 import withinPolygon from 'robust-point-in-polygon';
 import { format, isAfter } from 'date-fns';
-import storage from 'node-persist';
 
 import {
   initialDate,
   allWildfires,
   initializeState,
   lastURL,
+  updateConfig,
 } from './state.js';
 import { io } from './app.js';
 
@@ -87,7 +87,9 @@ async function deleteDownloadedFile() {
   try {
     const date = format(Date.now(), 'yyyyMMdd_HHmm').replace(/.$/, '0');
     const lastURL = `focos_10min_${date}.csv`;
-    await storage.updateItem('last url fetched', lastURL);
+    console.log('UPDATING LAST URL');
+    await updateConfig({ key: 'last_url', data: lastURL });
+    console.log('FINISHED UPDATING LAST URL');
     await fs.promises.unlink('./src/downloaded.csv');
     console.log('Downloaded file deleted');
   } catch (error) {
@@ -269,7 +271,6 @@ const loadAmazonBiome = () => {
     .on('end', async function () {
       console.log('Finished loading Amazon Biome');
       try {
-        await storage.init({ dir: './src/persistent_data' });
         await initializeState();
         readLocalCSV();
       } catch (error) {
