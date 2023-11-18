@@ -7,9 +7,11 @@ const octokit = new Octokit({
 });
 
 async function getInitialState() {
+  const { CONFIG_FILE } = process.env;
+
   try {
     const { data } = await octokit.request(
-      'GET /repos/mugasparetto/amazonisburning-files/contents/config-dev.json',
+      `GET /repos/mugasparetto/amazonisburning-files/contents/${CONFIG_FILE}.json`,
       {
         owner: 'mugasparetto',
         repo: 'amazonisburning-files',
