@@ -265,7 +265,7 @@ const loadAmazonBiome = () => {
     .on('end', async function () {
       console.log('Finished loading Amazon Biome');
       try {
-        await storage.init({});
+        await storage.init({ dir: './src/persistent_data' });
         await initializeState();
         readLocalCSV();
       } catch (error) {
