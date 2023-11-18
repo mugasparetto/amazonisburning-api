@@ -1,7 +1,7 @@
 import storage from 'node-persist';
 import { parseISO } from 'date-fns';
 
-import { getInitialState } from './octokit.js';
+import { getInitialState, updateInitialDate } from './octokit.js';
 
 const allWildfires = [];
 var initialDate;
@@ -16,7 +16,11 @@ async function initializeState() {
 
 async function updateDate(string) {
   initialDate = new Date(string);
-  await storage.updateItem('initial date', initialDate);
+  try {
+    await updateInitialDate(initialDate);
+  } catch (error) {
+    console.log(error);
+  }
 }
 
 export { allWildfires, initialDate, updateDate, initializeState, lastURL };

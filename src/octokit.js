@@ -1,4 +1,5 @@
 import { Octokit } from '@octokit/rest';
+import { lastURL } from './state.js';
 
 const octokit = new Octokit({
   auth:
@@ -6,25 +7,33 @@ const octokit = new Octokit({
   userAgent: 'amazonisburning',
 });
 
-async function getInitialState() {
-  const { CONFIG_FILE } = process.env;
+const { CONFIG_FILE } = process.env;
 
+async function getFileData() {
   try {
     const { data } = await octokit.request(
       `GET /repos/mugasparetto/amazonisburning-files/contents/${CONFIG_FILE}.json`,
       {
         owner: 'mugasparetto',
         repo: 'amazonisburning-files',
-        path: 'config-dev.json',
+        path: `${CONFIG_FILE}.json`,
         headers: {
           'X-GitHub-Api-Version': '2022-11-28',
         },
       }
     );
 
-    const config = JSON.parse(
-      Buffer.from(data.content, 'base64').toString('utf8')
-    );
+    return data;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+async function getInitialState() {
+  try {
+    const { content } = await getFileData();
+
+    const config = JSON.parse(Buffer.from(content, 'base64').toString('utf8'));
 
     return config;
   } catch (error) {
@@ -32,4 +41,27 @@ async function getInitialState() {
   }
 }
 
-export { getInitialState };
+async function updateInitialDate(newInitialDate) {
+  try {
+    const string = JSON.stringify({
+      initial_date: newInitialDate,
+      last_url: lastURL,
+    });
+    const newContent = Buffer.from(string, 'utf8').toString('base64');
+
+    const { sha } = await getFileData();
+
+    await octokit.rest.repos.createOrUpdateFileContents({
+      owner: 'mugasparetto',
+      repo: 'amazonisburning-files',
+      path: `${CONFIG_FILE}.json`,
+      sha: sha,
+      message: 'initial_date updated',
+      content: newContent,
+    });
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+export { getInitialState, updateInitialDate };
