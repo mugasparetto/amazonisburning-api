@@ -17,7 +17,6 @@
     "socket.io": "^4.7.2"
   },
   "devDependencies": {
-    "@types/node-persist": "^3.1.6",
     "dotenv": "^16.3.1"
   }
 }
