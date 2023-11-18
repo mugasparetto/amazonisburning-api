@@ -8,6 +8,7 @@
   },
   "type": "module",
   "dependencies": {
+    "@octokit/rest": "^20.0.2",
     "cors": "^2.8.5",
     "csv": "^6.3.5",
     "date-fns": "^2.30.0",
