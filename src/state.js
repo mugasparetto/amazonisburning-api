@@ -5,12 +5,12 @@ import { getInitialState } from './octokit.js';
 
 const allWildfires = [];
 var initialDate;
-
-initialDate = new Date('December 5, 2023 09:00:00');
+var lastURL;
 
 async function initializeState() {
-  const config = await getInitialState();
-  initialDate = parseISO(config.initial_date);
+  const { initial_date, last_url } = await getInitialState();
+  initialDate = parseISO(initial_date);
+  lastURL = last_url;
   console.log('Initial date: ', initialDate);
 }
 
@@ -19,4 +19,4 @@ async function updateDate(string) {
   await storage.updateItem('initial date', initialDate);
 }
 
-export { allWildfires, initialDate, updateDate, initializeState };
+export { allWildfires, initialDate, updateDate, initializeState, lastURL };

@@ -5,7 +5,12 @@ import withinPolygon from 'robust-point-in-polygon';
 import { format, isAfter } from 'date-fns';
 import storage from 'node-persist';
 
-import { initialDate, allWildfires, initializeState } from './state.js';
+import {
+  initialDate,
+  allWildfires,
+  initializeState,
+  lastURL,
+} from './state.js';
 import { io } from './app.js';
 
 const polygon = [];
@@ -221,7 +226,6 @@ async function startDataFetch() {
     console.log('Now is after INITIAL DATE');
     const date = format(Date.now(), 'yyyyMMdd_HHmm').replace(/.$/, '0');
     try {
-      const lastURL = await storage.getItem('last url fetched');
       const urlNow = `focos_10min_${date}.csv`;
       console.log('-----');
       console.log('LastURL: ', lastURL);
