@@ -1,4 +1,6 @@
 import { Octokit } from '@octokit/rest';
+import fs from 'fs';
+import * as CSV from 'csv-string';
 import { initialDate, lastURL } from './state.js';
 
 const octokit = new Octokit({
@@ -7,16 +9,16 @@ const octokit = new Octokit({
   userAgent: 'amazonisburning',
 });
 
-var env = process.env.NODE_ENV || 'development';
+const env = process.env.NODE_ENV || 'development';
 
-async function getFileData() {
+async function getFileData(fileName) {
   try {
     const { data } = await octokit.request(
-      `GET /repos/mugasparetto/amazonisburning-files/contents/config-${env}.json`,
+      `GET /repos/mugasparetto/amazonisburning-files/contents/${fileName}`,
       {
         owner: 'mugasparetto',
         repo: 'amazonisburning-files',
-        path: `config-${env}.json`,
+        path: `${fileName}`,
         headers: {
           'X-GitHub-Api-Version': '2022-11-28',
         },
@@ -31,11 +33,26 @@ async function getFileData() {
 
 async function getInitialState() {
   try {
-    const { content } = await getFileData();
+    const { content } = await getFileData(`config-${env}.json`);
 
     const config = JSON.parse(Buffer.from(content, 'base64').toString('utf8'));
 
     return config;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+async function getWildfiresFile() {
+  try {
+    const { content } = await getFileData(`wildfires-${env}.csv`);
+    const str = Buffer.from(content, 'base64').toString('utf8');
+
+    return CSV.parse(str);
+
+    // const config = JSON.parse(Buffer.from(content, 'base64').toString('utf8'));
+
+    // return config;
   } catch (error) {
     console.log(error);
   }
@@ -60,7 +77,7 @@ async function updateConfigFile({ key, data }) {
 
     const newContent = Buffer.from(string, 'utf8').toString('base64');
 
-    const { sha } = await getFileData();
+    const { sha } = await getFileData(`config-${env}.json`);
 
     await octokit.rest.repos.createOrUpdateFileContents({
       owner: 'mugasparetto',
@@ -75,4 +92,34 @@ async function updateConfigFile({ key, data }) {
   }
 }
 
-export { getInitialState, updateConfigFile };
+function updateAllWildfiresFile() {
+  async function sendToGit() {
+    try {
+      const csv = await fs.promises.readFile('./src/all_wildfires.csv', {
+        encoding: 'base64',
+      });
+
+      const { sha } = await getFileData(`wildfires-${env}.csv`);
+
+      await octokit.rest.repos.createOrUpdateFileContents({
+        owner: 'mugasparetto',
+        repo: 'amazonisburning-files',
+        path: `wildfires-${env}.csv`,
+        sha: sha,
+        message: 'wildfires updated',
+        content: csv,
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  setTimeout(sendToGit, 500); //github does not allow uploading two files Consecutively, so I added a quick delay
+}
+
+export {
+  getInitialState,
+  updateConfigFile,
+  updateAllWildfiresFile,
+  getWildfiresFile,
+};

@@ -11,6 +11,7 @@ import {
   lastURL,
   updateConfig,
 } from './state.js';
+import { updateAllWildfiresFile, getWildfiresFile } from './octokit.js';
 import { io } from './app.js';
 
 const polygon = [];
@@ -108,6 +109,9 @@ function writeToCSV(dataToWrite) {
   });
 
   stringifier.pipe(writeStream);
+
+  updateAllWildfiresFile();
+
   console.log('Finished writing data');
 }
 
@@ -168,25 +172,19 @@ function updateAllWildfires(data) {
   deleteDownloadedFile();
 }
 
-function readLocalCSV() {
-  fs.createReadStream('./src/all_wildfires.csv')
-    .pipe(
-      parse({
-        delimiter: ',',
-        from_line: 2,
-      })
-    )
-    .on('data', function (row) {
-      const [lat, long, date, count] = row;
+async function readStoredWildfires() {
+  try {
+    const parsedCSV = await getWildfiresFile();
+    // skips first line (header)
+    for (let i = 1; i < parsedCSV.length; i++) {
+      const [lat, long, date, count] = parsedCSV[i];
       allWildfires.push([lat, long, date, parseInt(count)]);
-    })
-    .on('end', function () {
-      console.log('allWildfires has been populated: ', allWildfires);
-      startDataFetch();
-    })
-    .on('error', function (error) {
-      console.log(error.message);
-    });
+    }
+    console.log('allWildfires has been populated: ', allWildfires);
+    startDataFetch();
+  } catch (error) {
+    console.log(error);
+  }
 }
 
 function readWildfiresDownloaded() {
@@ -270,7 +268,7 @@ const loadAmazonBiome = () => {
       console.log('Finished loading Amazon Biome');
       try {
         await initializeState();
-        readLocalCSV();
+        readStoredWildfires();
       } catch (error) {
         console.log(error);
       }
