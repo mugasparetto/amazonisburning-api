@@ -7,16 +7,16 @@ const octokit = new Octokit({
   userAgent: 'amazonisburning',
 });
 
-const { CONFIG_FILE } = process.env;
+var env = process.env.NODE_ENV || 'development';
 
 async function getFileData() {
   try {
     const { data } = await octokit.request(
-      `GET /repos/mugasparetto/amazonisburning-files/contents/${CONFIG_FILE}.json`,
+      `GET /repos/mugasparetto/amazonisburning-files/contents/config-${env}.json`,
       {
         owner: 'mugasparetto',
         repo: 'amazonisburning-files',
-        path: `${CONFIG_FILE}.json`,
+        path: `config-${env}.json`,
         headers: {
           'X-GitHub-Api-Version': '2022-11-28',
         },
@@ -69,7 +69,7 @@ async function updateConfigFile({ key, data }) {
     await octokit.rest.repos.createOrUpdateFileContents({
       owner: 'mugasparetto',
       repo: 'amazonisburning-files',
-      path: `${CONFIG_FILE}.json`,
+      path: `config-${env}.json`,
       sha: sha,
       message: `${key} updated`,
       content: newContent,
