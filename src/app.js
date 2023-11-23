@@ -9,20 +9,11 @@ import { initialDateRouter } from './routes/initialDateRoutes.js';
 import { wildfiresRouter } from './routes/wildfiresRoutes.js';
 
 const app = express();
-// app.use(cors());
+app.use(cors());
 app.use(express.json());
 
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: [
-      'http://localhost:3000',
-      'http://fastidious-pony-5e48f3.netlify.app',
-    ],
-    methods: ['GET'],
-    allowedHeaders: ['Access-Control-Allow-Origin'],
-  },
-});
+const io = new Server(server, { cors: { origin: '*' } });
 export { io };
 
 app.use('/initial_date/', initialDateRouter);
