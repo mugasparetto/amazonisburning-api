@@ -17,7 +17,7 @@ const io = new Server(server, {
   cors: {
     origin: [
       'http://localhost:3000',
-      'https://fastidious-pony-5e48f3.netlify.app:*',
+      'http://fastidious-pony-5e48f3.netlify.app',
     ],
   },
 });
