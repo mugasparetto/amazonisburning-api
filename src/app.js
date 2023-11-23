@@ -20,6 +20,7 @@ const io = new Server(server, {
       'http://fastidious-pony-5e48f3.netlify.app',
     ],
     methods: ['GET'],
+    allowedHeaders: ['Access-Control-Allow-Origin'],
   },
 });
 export { io };
