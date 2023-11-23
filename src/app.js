@@ -19,6 +19,7 @@ const io = new Server(server, {
       'http://localhost:3000',
       'http://fastidious-pony-5e48f3.netlify.app',
     ],
+    methods: ['GET'],
   },
 });
 export { io };
