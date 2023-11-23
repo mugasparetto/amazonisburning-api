@@ -13,7 +13,14 @@ app.use(cors());
 app.use(express.json());
 
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: 'http://localhost:3000' } });
+const io = new Server(server, {
+  cors: {
+    origin: [
+      'http://localhost:3000',
+      'https://fastidious-pony-5e48f3.netlify.app/',
+    ],
+  },
+});
 export { io };
 
 app.use('/initial_date/', initialDateRouter);
