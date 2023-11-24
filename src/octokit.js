@@ -4,8 +4,7 @@ import * as CSV from 'csv-string';
 import { initialDate, lastURL } from './state.js';
 
 const octokit = new Octokit({
-  auth:
-    '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',
+  auth: process.env.AUTH,
   userAgent: 'amazonisburning',
 });
 
